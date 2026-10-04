@@ -4,7 +4,7 @@ QR-kód alapú vendégelégedettség-mérés vendéglátóhelyeknek. A vendég a
 lévő kódot beolvasva 30 másodperc alatt értékel öt szempontot; a tulajdonos
 óránkénti bontásban látja, mikor és hol csúszik el a kiszolgálás.
 
-**Next.js 16 + Supabase + Vercel.** Éles: https://guestly-app-gamma.vercel.app
+**Next.js 16 + Supabase + Vercel.** Éles: https://fydback.hu
 
 > ⚠️ Ez a Next.js verzió eltér a megszokottól — a `middleware.ts` konvenció
 > neve `proxy.ts`, és az exportált függvény `proxy`, nem `middleware`. Kód

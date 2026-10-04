@@ -61,7 +61,7 @@ export async function submitDemoRequest(
         ``,
         `Köszönjük a jelentkezést a(z) ${business} nevében. Hamarosan felvesszük veled a kapcsolatot, hogy egyeztessünk egy 15 perces bemutatót.`,
         ``,
-        `Ezt a levelet azért kaptad, mert demót kértél a fydback-app-gamma.vercel.app oldalon.`,
+        `Ezt a levelet azért kaptad, mert demót kértél a fydback.hu oldalon.`,
         `Fydback`,
       ].join("\n"),
       html: `

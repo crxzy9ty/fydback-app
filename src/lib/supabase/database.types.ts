@@ -303,11 +303,11 @@ export interface Database {
         Args: { target_partner_id: string };
         Returns: boolean;
       };
-      guestly_hour_bucket: {
+      fydback_hour_bucket: {
         Args: { h: number };
         Returns: number;
       };
-      // Parameterized version of guestly_hour_bucket, bucketing against a
+      // Parameterized version of fydback_hour_bucket, bucketing against a
       // partner's own open_hour/close_hour instead of the fixed range. Not
       // called directly from TS — partner_heatmap_stats_range uses it
       // internally — kept here for completeness.

@@ -2,7 +2,7 @@
 //
 // Usage:
 //   npx tsx scripts/invite-owner.ts --email=anna@kavezoaroma.hu --role=owner --partner=<partnerId1>,<partnerId2>
-//   npx tsx scripts/invite-owner.ts --email=you@guestly.hu --role=admin
+//   npx tsx scripts/invite-owner.ts --email=you@fydback.hu --role=admin
 //
 // Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY in .env.local.
 // Sends a real Supabase invite email (subject to the project's SMTP rate
