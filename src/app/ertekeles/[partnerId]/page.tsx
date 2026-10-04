@@ -68,6 +68,9 @@ export default async function GuestReviewPage({
     // submitting, show what they actually just did.
     const [state, submittedAtRaw] = dedupCookie.split(".");
     const submittedAt = Number(submittedAtRaw);
+    // A Server Component rendered fresh per request (force-dynamic), so reading
+    // the clock here is the intent, not an impurity that could go stale.
+    // eslint-disable-next-line react-hooks/purity
     const justSubmitted = Number.isFinite(submittedAt) && Date.now() - submittedAt < 5 * 60 * 1000;
 
     if (justSubmitted && state === "prize") {

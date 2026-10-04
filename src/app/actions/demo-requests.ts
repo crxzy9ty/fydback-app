@@ -1,9 +1,17 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, escapeHtml } from "@/lib/email";
 
 export type DemoRequestState = { ok: boolean; error: string | null };
+
+// Site-wide ceiling on demo-request emails per hour. The per-address cap below
+// stops one inbox being flooded, but rotating through addresses would still
+// let a script mail a stream of strangers from our domain. Real demo requests
+// arrive a few per day, so this only ever trips under abuse — the requests
+// are still saved, just not mailed.
+const MAX_DEMO_EMAILS_PER_HOUR = 20;
 
 // RLS grants INSERT on demo_requests to anon + authenticated with a
 // no-restriction check(true) — see supabase/migrations/..._rls_policies_and_grants.sql.
@@ -12,7 +20,7 @@ export async function submitDemoRequest(
   formData: FormData,
 ): Promise<DemoRequestState> {
   const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const business = String(formData.get("business") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim() || null;
 
@@ -34,13 +42,26 @@ export async function submitDemoRequest(
   // "send arbitrary HTML mail from our verified domain to an address I
   // don't own" abuse. Capping confirmation emails per target address to
   // one per hour doesn't stop the request being recorded, just the spam.
+  //
+  // The count MUST use the admin client: RLS lets only admins read
+  // demo_requests, so this query run as the anonymous visitor always came back
+  // empty and the cap never applied. The email is lowercased above so
+  // "A@x.hu" and "a@x.hu" count as the same address.
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count: recentCount } = await supabase
-    .from("demo_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("email", email)
-    .gte("created_at", oneHourAgo);
+  const admin = createAdminClient();
+  const [{ count: recentCount }, { count: hourlyTotal }] = await Promise.all([
+    admin
+      .from("demo_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("email", email)
+      .gte("created_at", oneHourAgo),
+    admin
+      .from("demo_requests")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", oneHourAgo),
+  ]);
   const recentlySentToThisEmail = (recentCount ?? 0) > 0;
+  const skipEmails = recentlySentToThisEmail || (hourlyTotal ?? 0) >= MAX_DEMO_EMAILS_PER_HOUR;
 
   const { error } = await supabase.from("demo_requests").insert({ name, email, business, message });
 
@@ -51,7 +72,7 @@ export async function submitDemoRequest(
   // Best-effort, non-blocking: the request is already saved even if either
   // email fails to send (e.g. RESEND_API_KEY not configured yet), and even
   // if we skip sending because of the throttle above.
-  if (!recentlySentToThisEmail) {
+  if (!skipEmails) {
     const firstName = name.split(" ")[0];
     await sendEmail({
       to: email,
@@ -76,8 +97,10 @@ export async function submitDemoRequest(
     });
   }
 
+  // Same throttle for the admin's own notification: a repeat from the same
+  // address is already in the inbox, and a flood should not bury real ones.
   const notifyAddress = process.env.ADMIN_NOTIFICATION_EMAIL;
-  if (notifyAddress) {
+  if (notifyAddress && !skipEmails) {
     await sendEmail({
       to: notifyAddress,
       subject: `Új demó-kérés: ${business}`,

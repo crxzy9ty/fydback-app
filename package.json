@@ -11,9 +11,11 @@
     "db:types": "supabase gen types typescript --linked > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
+    "@fontsource/outfit": "^5.3.0",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.8",
-    "next": "16.2.12",
+    "next": "16.3.8",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -21,8 +23,6 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@fontsource/outfit": "^5.3.0",
-    "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
@@ -30,7 +30,7 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.3.8",
     "supabase": "^2.109.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",

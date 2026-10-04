@@ -48,6 +48,9 @@ export default function SetPasswordPage() {
     const hash = window.location.hash;
     if (hash.includes("error=")) {
       const params = new URLSearchParams(hash.slice(1));
+      // The fragment only exists in the browser, so it can only be read after
+      // mount; this runs once, so there is no render cascade to worry about.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLinkError(
         params.get("error_code") === "otp_expired"
           ? "Ez a link már lejárt — kérj egy újat."

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useActionState } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { signInAdmin, type AuthActionState } from "@/app/actions/auth";
 import { Logo } from "@/app/Logo";
@@ -21,12 +21,7 @@ function SubmitButton() {
   );
 }
 
-export default function AdminLoginPage({
-  params,
-}: {
-  params: Promise<{ adminSlug: string }>;
-}) {
-  const { adminSlug } = use(params);
+export default function AdminLoginPage() {
   const [state, formAction] = useActionState(signInAdmin, initialState);
 
   return (
@@ -43,7 +38,6 @@ export default function AdminLoginPage({
         <p className="mb-6 text-sm text-white/55">Csak a Fydback csapata számára.</p>
 
         <form action={formAction} className="flex flex-col gap-4">
-          <input type="hidden" name="adminSlug" value={adminSlug} />
           <div>
             <label htmlFor="email" className="mb-1.5 block text-xs font-bold text-white">
               E-mail cím

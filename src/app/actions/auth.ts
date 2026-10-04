@@ -73,7 +73,13 @@ export async function signInAdmin(
 ): Promise<AuthActionState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const adminSlug = String(formData.get("adminSlug") ?? "");
+  // Where to land after login comes from configuration, never from the form:
+  // a posted value like "/evil.example" would turn redirect(`/${…}`) into a
+  // protocol-relative redirect off the site.
+  const adminSlug = process.env.ADMIN_ROUTE_SECRET;
+  if (!adminSlug) {
+    return { error: "Az admin felület nincs beállítva." };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
