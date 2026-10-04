@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail, escapeHtml } from "@/lib/email";
 
 export type AuthActionState = {
   error: string | null;
@@ -109,27 +111,94 @@ export async function signOutAdmin(adminSlug: string) {
   redirect(`/${adminSlug}/login`);
 }
 
-// Sends a password reset / invite-acceptance email. Used both for "forgot
-// password" and as the mechanism an invited owner/admin uses to set their
-// first password (Supabase's invite email links to the same code-exchange
-// flow at /auth/callback).
+// Minimum gap between two reset emails to the same account. The reset link is
+// generated and mailed by us (see below), so unlike resetPasswordForEmail it
+// has no built-in Supabase rate limit — without this, anyone could submit a
+// known address in a loop and flood that person's inbox.
+const RESET_COOLDOWN_MS = 60_000;
+
+// Sends a password reset email. Used both for "forgot password" and as the
+// fallback an invited owner/admin uses to set their first password.
+//
+// WHY WE GENERATE AND SEND THE LINK OURSELVES instead of calling
+// resetPasswordForEmail from the SSR client: that route issues a PKCE `?code=`
+// that can only be exchanged by the browser that requested it (the
+// code_verifier lives in that browser's cookies). Anyone who requested the
+// reset in an installed home-screen web app — which has its own cookie jar —
+// and then tapped the email link, which opens in the phone's default browser,
+// landed on /login?error=auth with no way forward. A link generated through
+// the admin API carries the session in the URL fragment instead, works in any
+// browser, and is already handled by /auth/callback and /set-password (the
+// admin/owner invites take the same path).
+//
+// The response never reveals whether the address has an account, matching
+// what resetPasswordForEmail did.
 export async function requestPasswordReset(
   _prevState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  const email = String(formData.get("email") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) {
     return { error: "Add meg az e-mail címed." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${getSiteUrl()}/auth/callback?next=/set-password`,
+  const admin = createAdminClient();
+
+  // profiles.email mirrors auth.users.email, and the admin client is needed
+  // because this caller is anonymous and RLS hides profiles from them.
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  if (!profile) {
+    return { error: null, success: true };
+  }
+
+  const { data: existing } = await admin.auth.admin.getUserById(profile.id);
+  const lastSent = existing?.user?.recovery_sent_at;
+  if (lastSent && Date.now() - new Date(lastSent).getTime() < RESET_COOLDOWN_MS) {
+    return { error: null, success: true };
+  }
+
+  const { data: generated, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: `${getSiteUrl()}/auth/callback?next=/set-password` },
   });
 
-  if (error) {
+  const link = generated?.properties?.action_link;
+  if (error || !link) {
+    console.error("[auth] generateLink(recovery) failed:", error?.message);
     return { error: "Hiba történt, próbáld újra." };
   }
+
+  await sendEmail({
+    to: email,
+    subject: "Jelszó visszaállítása – Fydback",
+    text: [
+      "Jelszó-visszaállítást kértél a Fydback fiókodhoz.",
+      "",
+      `Új jelszó beállítása: ${link}`,
+      "",
+      "A link rövid ideig érvényes, és egyszer használható. Bármelyik böngészőben megnyithatod.",
+      "Ha nem te kérted, nyugodtan hagyd figyelmen kívül ezt az e-mailt.",
+    ].join("\n"),
+    html: `
+      <h2 style="margin:0 0 16px;font-size:20px;color:#15131c;">Jelszó visszaállítása</h2>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#15131c;">
+        Kattints az alábbi gombra az új jelszavad beállításához. A link bármelyik böngészőben megnyitható.
+      </p>
+      <p style="margin:0 0 24px;">
+        <a href="${escapeHtml(link)}" style="display:inline-block;background:#15131c;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">
+          Új jelszó beállítása
+        </a>
+      </p>
+      <p style="margin:0;font-size:13px;color:#6b6878;">
+        A link rövid ideig érvényes, és egyszer használható. Ha nem te kérted, nyugodtan hagyd figyelmen kívül ezt az e-mailt.
+      </p>
+    `,
+  });
 
   return { error: null, success: true };
 }

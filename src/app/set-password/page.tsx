@@ -22,10 +22,11 @@ function SubmitButton() {
 }
 
 // Reached two different ways, which need two different fixes here:
-//   1. Password reset ("Elfelejtett jelszó") goes through /auth/callback,
-//      a server route that exchanges a `?code=` for a session and sets the
-//      cookie itself — this page just renders the form, session already set.
-//   2. An admin/owner invite email is always an IMPLICIT-flow link: Supabase
+//   1. A PKCE link goes through /auth/callback, a server route that exchanges
+//      a `?code=` for a session and sets the cookie itself — this page just
+//      renders the form, session already set. Password reset no longer uses
+//      this (it needs the requesting browser, see requestPasswordReset).
+//   2. A password reset or admin/owner invite email is an IMPLICIT-flow link: Supabase
 //      generates it via the admin API on OUR server, so there is no browser
 //      anywhere holding the PKCE code_verifier a `?code=` exchange would
 //      need. Supabase's only option is to hand back the session as a

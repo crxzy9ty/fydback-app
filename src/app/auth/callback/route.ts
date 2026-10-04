@@ -3,11 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 
 // Landing point for Supabase invite / password-reset / magic-link emails.
 //
-// Two shapes reach here, and only one of them carries a `?code=`:
-//   - Password reset is user-initiated from THIS app's own browser session
-//     (resetPasswordForEmail, called via the SSR client), so Supabase issues
-//     a PKCE `code` this route can exchange server-side.
-//   - Admin/owner invites are generated on OUR server via the admin API
+// Two shapes can reach here, and only one of them carries a `?code=`:
+//   - A PKCE `code`, which this route exchanges server-side. Password reset
+//     no longer produces one (it is generated on our server too, see
+//     requestPasswordReset — a PKCE link only works in the browser that asked
+//     for it, which broke installed home-screen web apps); this branch stays
+//     for any PKCE link still in flight or issued by another flow.
+//   - Password resets and admin/owner invites, generated on OUR server via the admin API
 //     (generateLink/inviteUserByEmail) — no browser ever held a PKCE
 //     code_verifier for them, so Supabase can only hand back the session as
 //     a `#access_token=…` URL FRAGMENT, appended to `next` below. A server
